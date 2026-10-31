@@ -254,7 +254,10 @@ async def analyze_gemini(image: bytes, mime: str, description: str, location: st
         from google import genai
         from google.genai import types
 
-        client = genai.Client(api_key=key)
+        client = genai.Client(
+            api_key=key,
+            http_options=types.HttpOptions(timeout=180_000),
+        )
         image_part = types.Part.from_bytes(data=image, mime_type=mime)
         response = client.models.generate_content(
             model=GEMINI_MODEL,
@@ -278,8 +281,8 @@ async def analyze_gemini(image: bytes, mime: str, description: str, location: st
             detail = "Gemini API quota or rate limit reached. Please retry later."
         else:
             detail = f"Gemini image analysis failed ({type(exc).__name__}). Check the backend logs for details."
-        # Detailed provider exceptions are logged server-side only; never return API secrets to the browser.
-        print(f"[Gemini error] {type(exc).__name__}: {exc}")
+        # Provider exception text can contain sensitive request details.
+        print(f"[Gemini error] {type(exc).__name__}")
         raise HTTPException(status_code=502, detail=detail)
 
 
