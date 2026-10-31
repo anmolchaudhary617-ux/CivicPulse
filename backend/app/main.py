@@ -11,7 +11,7 @@ import warnings
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import httpx
 from dotenv import load_dotenv
@@ -57,8 +57,26 @@ app.add_middleware(
 )
 
 
+class ReportAnalysis(BaseModel):
+    issue_type: Literal[
+        "Pothole",
+        "Garbage",
+        "Broken streetlight",
+        "Damaged sidewalk",
+        "Water leakage",
+        "Other",
+    ]
+    severity: Literal["Low", "Medium", "High", "Unclear"]
+    title: str = Field(min_length=1, max_length=140)
+    description: str = Field(min_length=1, max_length=1000)
+    evidence: list[str] = Field(max_length=8)
+    department: str = Field(min_length=1, max_length=100)
+    confidence: float = Field(ge=0, le=1, strict=True)
+    limitations: list[str] = Field(max_length=8)
+
+
 class ReportCreate(BaseModel):
-    analysis: dict
+    analysis: ReportAnalysis
     location: str = ""
     description: str = ""
     image_name: str = ""
@@ -378,7 +396,7 @@ async def analyze(
 # Report-management endpoints are intentionally preserved for the product lead's integration.
 @app.post("/api/reports")
 async def create_report(payload: ReportCreate):
-    a = payload.analysis
+    a = payload.analysis.model_dump()
     report_id = str(uuid.uuid4())[:8].upper()
     created = datetime.now(timezone.utc).isoformat()
     with db() as con:
