@@ -19,6 +19,8 @@ npm run dev
 ```
 Open http://localhost:5173.
 
+To create a production bundle, run `npm run build` from `frontend`.
+
 ## Important
 AI-generated issue categories and severity are preliminary suggestions, not official inspections or verified municipal complaints. Users review findings before saving. Sample dashboard cards are illustrative demo data and are replaced by saved reports when available.
 

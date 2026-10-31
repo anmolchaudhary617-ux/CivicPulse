@@ -14,3 +14,6 @@ uvicorn app.main:app --reload --port 8000
 Local inference requires Ollama running and `gemma4:e2b` installed.
 Hosted inference uses `gemma-4-26b-a4b-it` through the Google Gen AI SDK.
 Never commit `.env`.
+
+## Report API
+`POST /api/reports` expects an `analysis` object matching the normalized `/api/analyze` response. Issue type and severity must use supported values, confidence must be between 0 and 1, and evidence and limitations must be arrays of at most eight strings.
