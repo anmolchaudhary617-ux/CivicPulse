@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Activity, AlertTriangle, ArrowUpRight, Camera, CheckCircle2, Clock3, MapPin, Plus, ShieldCheck, Sparkles, Upload, X } from 'lucide-react';
+import Dashboard from './Dashboard.jsx';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const demo = [
@@ -13,8 +14,20 @@ export default function App(){
   const [preview,setPreview]=useState(''), [description,setDescription]=useState(''), [location,setLocation]=useState('');
   const [provider,setProvider]=useState('gemini'), [analysis,setAnalysis]=useState(null), [busy,setBusy]=useState(false);
   const [error,setError]=useState(''), [notice,setNotice]=useState('');
+  const [page,setPage]=useState('home'), [communityPending,setCommunityPending]=useState(false);
+  const [dashboardRefreshToken,setDashboardRefreshToken]=useState(0);
   async function refresh(){try{const r=await fetch(`${API}/api/reports`);if(r.ok){const d=await r.json();setReports(d.length?d:demo)}}catch{}}
   useEffect(()=>{refresh()},[]);
+  useEffect(()=>{
+    if(page==='home'&&communityPending){
+      document.getElementById('reports')?.scrollIntoView({behavior:'smooth'});
+      setCommunityPending(false);
+    }
+  },[page,communityPending]);
+  function showCommunity(){
+    if(page==='home') document.getElementById('reports')?.scrollIntoView({behavior:'smooth'});
+    else {setCommunityPending(true);setPage('home')}
+  }
   function choose(f){if(!f)return;setFile(f);setPreview(URL.createObjectURL(f));setAnalysis(null);setError('')}
   async function analyze(e){e.preventDefault();if(!file){setError('Please choose an image first.');return}
     setBusy(true);setError('');setAnalysis(null);
@@ -23,13 +36,15 @@ export default function App(){
     }catch(err){setError(err.message)}finally{setBusy(false)}}
   async function submitReport(){if(!analysis)return;setBusy(true);setError('');
     try{const r=await fetch(`${API}/api/reports`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({analysis,location,description,image_name:file?.name||''})});
-      const d=await r.json();if(!r.ok)throw new Error(d.detail||'Could not save report');setNotice(`Report ${d.id} submitted successfully.`);setAnalysis(null);setFile(null);setPreview('');setDescription('');setLocation('');setShow(false);await refresh();
+      const d=await r.json();if(!r.ok)throw new Error(d.detail||'Could not save report');setNotice(`Report ${d.id} submitted successfully.`);setAnalysis(null);setFile(null);setPreview('');setDescription('');setLocation('');setShow(false);setDashboardRefreshToken(value=>value+1);await refresh();
     }catch(err){setError(err.message)}finally{setBusy(false)}}
   const high=reports.filter(x=>x.severity==='High').length;
   const resolved=reports.filter(x=>x.status==='Resolved').length;
   return <div className="app">
-    <header className="top"><a className="brand" href="#"><span className="brandmark">C</span><span>Civic<span className="green">Pulse</span><small>COMMUNITY ISSUE INTELLIGENCE</small></span></a><nav><a href="#reports">Explore reports</a><button className="primary small" onClick={()=>{setShow(true);setNotice('')}}><Plus size={16}/> Report an issue</button></nav></header>
-    <main>
+    <header className="top"><a className="brand" href="#" onClick={()=>setPage('home')}><span className="brandmark">C</span><span>Civic<span className="green">Pulse</span><small>COMMUNITY ISSUE INTELLIGENCE</small></span></a><nav aria-label="Main navigation"><button className={`nav-link ${page==='home'?'active':''}`} onClick={()=>setPage('home')}>Home</button><button className={`nav-link ${page==='dashboard'?'active':''}`} onClick={()=>setPage('dashboard')}>Dashboard</button><button className="nav-link" onClick={showCommunity}>Community</button><button className="primary small nav-report" onClick={()=>{setShow(true);setNotice('')}}><Plus size={16}/><span>Report an issue</span></button></nav></header>
+    {page==='dashboard'
+      ? <Dashboard api={API} onReport={()=>{setShow(true);setNotice('')}} refreshToken={dashboardRefreshToken}/>
+      : <main>
       <section className="hero"><div className="hero-copy"><div className="eyebrow"><span className="dot"/> YOUR CITY. YOUR VOICE.</div><h1>Small reports.<br/><em>Meaningful change.</em></h1><p>Turn the civic issues you see every day into clear, actionable reports. AI helps document the problem. Your community helps bring it to light.</p><div className="hero-actions"><button className="primary" onClick={()=>setShow(true)}><Camera size={17}/> Report an issue <ArrowUpRight size={16}/></button><a className="textlink" href="#reports">View community reports ↓</a></div><div className="trust"><ShieldCheck size={16}/> AI-assisted · Human-reviewed · Community-powered</div></div>
       <div className="hero-art"><div className="art-label"><Activity size={16}/> COMMUNITY PULSE <b>LIVE BOARD</b></div><div className="road"><div className="roadline"/><div className="pothole p1"/><div className="pothole p2"/></div><div className="floatcard"><span className="badge high">HIGH PRIORITY</span><b>Road damage reported</b><small><MapPin size={12}/> Community report · Awaiting review</small></div></div></section>
       <section className="stats"><div><span className="stat-icon"><Activity/></span><div><b>{reports.length}</b><small>Community reports</small></div></div><div><span className="stat-icon amber"><AlertTriangle/></span><div><b>{high}</b><small>High priority</small></div></div><div><span className="stat-icon mint"><CheckCircle2/></span><div><b>{resolved}</b><small>Marked resolved</small></div></div><div className="stat-note">Every report starts with someone<br/>who cares enough to speak up.</div></section>
@@ -37,7 +52,7 @@ export default function App(){
       <div className="cards">{reports.map((r,i)=><article className="report" key={r.id}><div className="report-top"><span className="type">{r.issue_type}</span><span className={`badge ${(r.severity||'').toLowerCase()}`}>{r.severity} priority</span></div><h3>{r.title}</h3><p className="loc"><MapPin size={13}/>{r.location||'Location not specified'}</p><div className="report-foot"><span><span className={`status ${(r.status||'').replaceAll(' ','-').toLowerCase()}`}/>{r.status}</span><small>#{r.id}</small></div></article>)}</div>
       </section>
       <section className="how"><div><div className="eyebrow">HOW CIVICPULSE WORKS</div><h2>From a photo to a <em>clearer picture.</em></h2></div><div className="steps"><div><span>01</span><b>Capture</b><p>Share a photo and tell us what you noticed.</p></div><div><span>02</span><b>Understand</b><p>Gemma 4 helps identify visible details and organise the report.</p></div><div><span>03</span><b>Verify & share</b><p>Review the findings before adding them to the community board.</p></div></div></section>
-    </main>
+    </main>}
     <footer><div className="brand"><span className="brandmark">C</span><span>Civic<span className="green">Pulse</span><small>SEE IT. REPORT IT. IMPROVE IT.</small></span></div><span>Built for communities, powered by open-weight AI.</span></footer>
     {show&&<div className="overlay" onMouseDown={e=>{if(e.target===e.currentTarget)setShow(false)}}><div className="modal"><div className="modal-head"><div><div className="eyebrow">COMMUNITY REPORT</div><h2>Make it <em>visible.</em></h2></div><button className="iconbtn" onClick={()=>setShow(false)}><X/></button></div>
       <form onSubmit={analyze}><label className="upload">{preview?<img src={preview}/>:<><Upload size={25}/><b>Drop an issue photo here</b><small>JPG, PNG or WEBP · Max 8 MB</small></>}<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>choose(e.target.files?.[0])}/></label>
